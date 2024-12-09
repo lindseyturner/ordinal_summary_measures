@@ -1,4 +1,4 @@
-#array simulation code 
+# array simulation code 
 source('simulation_functions.R')
 library(rmsb)
 library(LaplacesDemon)
@@ -11,7 +11,8 @@ library(doParallel)
 library(doRNG)
 
 
-#this is pulling the array # (from my bash file you can see I am using array #s 1-8)
+# this is pulling the array number
+# for the complete simulation, val should be all values from 1 to 36
 val <- as.numeric(Sys.getenv('SLURM_ARRAY_TASK_ID'))
 
 start <- determine_start_i2(val = val)
