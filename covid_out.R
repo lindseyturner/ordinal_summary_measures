@@ -21,7 +21,7 @@ set.seed(12345)
 # set working directory 
 setwd("/Users/lindseyturner/Library/CloudStorage/Box-Box/COVID_OUT_Data/")
 # load in the file with the functions
-source('covid_out_functions_github.R')
+source('covid_out_functions.R')
 
 # read in data 
 covid_out <- read.csv("covid_out_data_2023-06-27.csv") 
