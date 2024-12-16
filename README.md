@@ -7,7 +7,7 @@ covid_out_functions.R contain the functions used in the applied adjusted analysi
 
 simulation_functions.R contain the functions used in the simulation study for an unadjusted analysis. 
 
-covid_out.R uses the covid_out_functions.R to run the applied analysis of the publicly available covid out dataset.
+covid_out.R uses the covid_out_functions.R to run the applied analysis of the publicly available COVID-OUT dataset. To request access to the COVID-OUT dataset, see https://covidout.umn.edu/accessing-data
 
 simulation.R can be used to replicate the simulation completed in the manuscript. 
 
