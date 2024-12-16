@@ -12,7 +12,7 @@ library(doRNG)
 
 
 # for the complete simulation, val should be all values from 1 to 36
-# This code was originally parallelized and run on a supercomputer
+# This code was run in parallel on a high performance computing environment
 # all files created in this simulation have been uploaded to the Simulation Results folder
 for (val in 1:36) {
 
