@@ -1,8 +1,8 @@
 ---
 title: "Simulation Results"
 author: "Lindsey Turner"
-date: "`r Sys.Date()`"
-output: html_document
+date: '`r Sys.Date()`'
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -122,7 +122,7 @@ colnames(scenarios1) <- c("Nothing", "Hypoxemia", "ED Visit", "Hopsitalization",
 scenarios1$Scenario <- c("Control", "Null", "Low RD", "High RD", "Low RR", "High RR", "Low PO", "High PO", 
                          "NP 1", "NP 2")
 
-p1 <- scenarios1  %>%
+p1_even <- scenarios1  %>%
   mutate(Scenario = factor(Scenario, levels = c("Control", "Null", "Low PO", "High PO", "Low RD", "High RD", 
                                                 "Low RR", "High RR", 
                                                  "NP 1", "NP 2"))) %>% 
@@ -131,7 +131,12 @@ p1 <- scenarios1  %>%
   mutate(Outcome = factor(Outcome, levels = c("Nothing", "Hypoxemia", "ED Visit", "Hopsitalization", "Death"))) %>%
   ggplot(aes(x = Scenario, y = Proportion, fill = Outcome)) + geom_bar(stat = "identity") + 
   scale_x_discrete(guide = guide_axis(angle = 90)) +
-  theme_bw(base_size = 10) + scale_fill_brewer(palette = "Blues")
+  theme_bw(base_size = 10) + scale_fill_brewer(palette = "Blues") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14)) 
 
 rd1 <- cumsum(pt1) - cumsum(pc)
 rd2 <- cumsum(pt2) - cumsum(pc)
@@ -163,8 +168,15 @@ p2 <- risk_dif1 %>% filter(Scenario != "Null") %>%
   scale_linetype_manual(values = c(rep(c("longdash", "solid"), 4))) +
   scale_color_manual(values = c(rep(brewer.pal(8, "Paired")[2], 2), 
                                 rep(brewer.pal(8, "Paired")[4], 2), rep(brewer.pal(8, "Paired")[6], 2),
-                                rep(brewer.pal(8, "Paired")[8], 2))) # & 
-   #theme(legend.key.size = unit(3, "lines")) 
+                                rep(brewer.pal(8, "Paired")[8], 2))) + 
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14))  + 
+  scale_x_discrete(labels = c("Nothing" = "1|2",
+                              "Hypoxemia" = "2|3", 
+                              "ED Visit" = "3|4", 
+                              "Hopsitalization" = "4|5"))
 
 #c(brewer.pal(10, "Paired")[10], brewer.pal(8, "Paired")))
 
@@ -199,7 +211,57 @@ p3 <- rel_risk1 %>% filter(Scenario != "Null") %>%
   scale_linetype_manual(values = c(rep(c("longdash", "solid"), 4))) +
   scale_color_manual(values = c(rep(brewer.pal(8, "Paired")[2], 2), 
                                 rep(brewer.pal(8, "Paired")[4], 2), rep(brewer.pal(8, "Paired")[6], 2),
-                                rep(brewer.pal(8, "Paired")[8], 2)))
+                                rep(brewer.pal(8, "Paired")[8], 2))) + 
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14)) + 
+  scale_x_discrete(labels = c("Nothing" = "\u2264 1",
+                              "Hypoxemia" = "\u2264 2", 
+                              "ED Visit" = "\u2264 3", 
+                              "Hopsitalization" = "\u2264 4"))
+
+#rr greater than or equal to 
+rr1 <- revcumsum(pc) / revcumsum(pt1)
+rr2 <- revcumsum(pc) / revcumsum(pt2)
+rr3 <- revcumsum(pc) / revcumsum(pt3)
+rr4 <- revcumsum(pc) / revcumsum(pt4)
+rr5 <- revcumsum(pc) / revcumsum(pt5)
+rr6 <- revcumsum(pc) / revcumsum(pt6) 
+rr7 <- revcumsum(pc) / revcumsum(pt7)
+rr8 <- revcumsum(pc) / revcumsum(pt8) 
+rr9 <- revcumsum(pc) / revcumsum(pt9)
+
+rel_risk1 <- as.data.frame(rbind(rr1, rr2, rr3, rr4, rr5, rr6, rr7, rr8, rr9))
+colnames(rel_risk1) <- c("Nothing", "Hypoxemia", "ED Visit", "Hopsitalization", "Death")
+rel_risk1$Scenario <- c("Null", "Low RD", "High RD", "Low RR", "High RR", "Low PO", "High PO", 
+                         "NP 1", "NP 2")
+
+p3ge <- rel_risk1 %>% filter(Scenario != "Null") %>%
+  pivot_longer(cols = c("Nothing", "Hypoxemia", "ED Visit", "Hopsitalization", "Death"), 
+               names_to = "Outcome", values_to = "RR") %>% 
+  filter(Outcome != "Nothing")  %>%
+  mutate(Outcome = factor(Outcome, levels = c("Hypoxemia", "ED Visit", "Hopsitalization", "Death")),
+         Scenario = factor(Scenario, levels = c("Low PO", "High PO", "Low RD", "High RD", 
+                                                "Low RR", "High RR", 
+                                                "NP 1", "NP 2")))  %>%
+  group_by(Scenario) %>% 
+  ggplot(aes(x = Outcome, y = RR, color = Scenario, group = Scenario, linetype = Scenario)) + 
+  geom_line(linewidth = 1) + geom_point(show.legend = F) +
+  theme_bw(base_size = 10) + ylab("Cumulative Relative Risk") + 
+  scale_linetype_manual(values = c(rep(c("longdash", "solid"), 4))) +
+  scale_color_manual(values = c(rep(brewer.pal(8, "Paired")[2], 2), 
+                                rep(brewer.pal(8, "Paired")[4], 2), rep(brewer.pal(8, "Paired")[6], 2),
+                                rep(brewer.pal(8, "Paired")[8], 2))) + 
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14)) + 
+  scale_x_discrete(labels = c("Hypoxemia" = "\u2265 2", 
+                              "ED Visit" = "\u2265 3", 
+                              "Hopsitalization" = "\u2265 4", 
+                              "Death" = "\u2265 5"))
+
 
 
 or1 <- (cumsum(pt1)/ (1- cumsum(pt1))) / (cumsum(pc) / (1 - cumsum(pc)))
@@ -232,61 +294,68 @@ p4 <- odds_ratio1 %>% filter(Scenario != "Null") %>%
   scale_linetype_manual(values = c(rep(c("longdash", "solid"), 4))) +
   scale_color_manual(values = c(rep(brewer.pal(8, "Paired")[2], 2), 
                                 rep(brewer.pal(8, "Paired")[4], 2), rep(brewer.pal(8, "Paired")[6], 2),
-                                rep(brewer.pal(8, "Paired")[8], 2)))
+                                rep(brewer.pal(8, "Paired")[8], 2))) + 
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14))  + 
+  scale_x_discrete(labels = c("Nothing" = "1|2",
+                              "Hypoxemia" = "2|3", 
+                              "ED Visit" = "3|4", 
+                              "Hopsitalization" = "4|5"))
 
 legend <- get_legend(
   # create some space to the left of the legend
   p2 + theme(legend.key.size=unit(2.5,"lines")))
 
 library(cowplot)
-plots <- plot_grid(p1,  p4+ theme(legend.position="none"), p2+ theme(legend.position="none"), p3+ theme(legend.position="none"), labels = c("A", "B", "C", "D"))
+plots <- plot_grid(p4+ theme(legend.position="none"), p2+ theme(legend.position="none"), 
+                   p3+ theme(legend.position="none"),
+                   p3ge + theme(legend.position = "none"), labels = c("A", "B", "C", "D"))
 
 plot_grid(plots, legend, rel_widths = c(3, 0.5))
 
-#ggsave("simulation_scenarios1.png", height = 8, width = 8)
+#ggsave("simulation_scenarios1_040725.png", height = 8, width = 8, dpi = 600)
 
 
 ```
 
 
 ```{r, echo = FALSE}
-setwd("~/Documents/Dissertation/Simulation 101424/")
+setwd("~/Documents/Dissertation/Paper 1/Simulation_040725/")
 
 # read in the data 
-results1 <- rbind(as.data.frame(readRDS("results_array_1.rds"))[1:1000,], as.data.frame(readRDS("results_array_2.rds"))[1:1000,])
+results1 <- rbind(as.data.frame(readRDS("results_array_040725_1.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_2.rds"))[1:1000,])
 results1$Scenario <- "Null"
-results2 <- rbind(as.data.frame(readRDS("results_array_3.rds"))[1:1000,], as.data.frame(readRDS("results_array_4.rds"))[1:1000,])
+results2 <- rbind(as.data.frame(readRDS("results_array_040725_3.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_4.rds"))[1:1000,])
 results2$Scenario <- "Low Constant RD"
-results3 <- rbind(as.data.frame(readRDS("results_array_5.rds"))[1:1000,], as.data.frame(readRDS("results_array_6.rds"))[1:1000,])
+results3 <- rbind(as.data.frame(readRDS("results_array_040725_5.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_6.rds"))[1:1000,])
 results3$Scenario <- "High Constant RD"
-results4 <- rbind(as.data.frame(readRDS("results_array_7.rds"))[1:1000,], as.data.frame(readRDS("results_array_8.rds"))[1:1000,])
+results4 <- rbind(as.data.frame(readRDS("results_array_040725_7.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_8.rds"))[1:1000,])
 results4$Scenario <- "Low Constant RR"
-results5 <- rbind(as.data.frame(readRDS("results_array_9.rds"))[1:1000,], as.data.frame(readRDS("results_array_10.rds"))[1:1000,])
+results5 <- rbind(as.data.frame(readRDS("results_array_040725_9.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_10.rds"))[1:1000,])
 results5$Scenario <- "High Constant RR"
-results6 <- rbind(as.data.frame(readRDS("results_array_11.rds"))[1:1000,], as.data.frame(readRDS("results_array_12.rds"))[1:1000,])
+results6 <- rbind(as.data.frame(readRDS("results_array_040725_11.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_12.rds"))[1:1000,])
 results6$Scenario <- "Low PO"
-results7 <- rbind(as.data.frame(readRDS("results_array_13.rds"))[1:1000,], as.data.frame(readRDS("results_array_14.rds"))[1:1000,])
+results7 <- rbind(as.data.frame(readRDS("results_array_040725_13.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_14.rds"))[1:1000,])
 results7$Scenario <- "High PO"
-results8 <- rbind(as.data.frame(readRDS("results_array_15.rds"))[1:1000,], as.data.frame(readRDS("results_array_16.rds"))[1:1000,])
+results8 <- rbind(as.data.frame(readRDS("results_array_040725_15.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_16.rds"))[1:1000,])
 results8$Scenario <- "15% red 3-5, rest to 1"
-results9 <- rbind(as.data.frame(readRDS("results_array_17.rds"))[1:1000,], as.data.frame(readRDS("results_array_18.rds"))[1:1000,])
+results9 <- rbind(as.data.frame(readRDS("results_array_040725_17.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_18.rds"))[1:1000,])
 results9$Scenario <- "25% red 3-5, rest to 2"
 
 
 ```
 
-```{r, echo = F}
-results_all <- rbind(results1, results2, results3, results4, results5, results6, results7, results8, results9)
-
-results_all$Scenario <- factor(results_all$Scenario, levels = c("Null", "Low Constant RD", "High Constant RD",
-                                                                "Low Constant RR", "High Constant RR",
-                                                                "Low PO", "High PO", "15% red 3-5, rest to 1",
-                                                                "25% red 3-5, rest to 2"))
-
-results_all_extra <- results_all %>% separate(Frequentist_NB_CI, c("Freq_NB_Lower", "Freq_NB_Upper"), ";") 
-results_all_extra$Freq_NB_Lower <- gsub("\\[", "", results_all_extra$Freq_NB_Lower)
-results_all_extra$Freq_NB_Upper <- gsub("\\]", "", results_all_extra$Freq_NB_Upper)
-```
 
 
 ```{r, echo = F}
@@ -306,140 +375,88 @@ results_all_extra %>% mutate_if(is.character, as.numeric) %>% group_by(Scenario)
   dplyr::summarize(PO = round(sum((OR_CI_PO1 > 1 & 
                           OR_CI_PO2 > 1) |  (OR_CI_PO1 < 1 & 
                           OR_CI_PO2 < 1), na.rm = T)/
-                      sum(!is.na(OR_CI_PO1)), 3),
+                      sum(!is.na(OR_CI_PO1)), 2),
             NB = round(sum((Freq_NB_Lower > 0 & Freq_NB_Upper > 0) | (Freq_NB_Lower < 0 & Freq_NB_Upper < 0))/
-                                    sum(!is.na(Freq_NB_Lower)), 3),
-            ARD = round(sum((`unweighted_RD_CI_PPO.2.5%` > 0 & 
-                          `unweighted_RD_CI_PPO.97.5%` > 0) | (`unweighted_RD_CI_PPO.2.5%` < 0 & 
-                          `unweighted_RD_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`unweighted_RD_CI_PPO.97.5%`)), 3),
-            bCARD = round(sum((`weighted_RD_bcontrol_CI_PPO.2.5%` > 0 & 
-                          `weighted_RD_bcontrol_CI_PPO.97.5%` > 0) | (`weighted_RD_bcontrol_CI_PPO.2.5%` < 0 & 
-                          `weighted_RD_bcontrol_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`weighted_RD_bcontrol_CI_PPO.2.5%`)), 3),
+                                    sum(!is.na(Freq_NB_Lower)), 2),
             AOR = round(sum((`unweighted_OR_CI_PPO.2.5%` > 1 & 
                           `unweighted_OR_CI_PPO.97.5%` > 1) | (`unweighted_OR_CI_PPO.2.5%` < 1 & 
                           `unweighted_OR_CI_PPO.97.5%` < 1), na.rm = T)/
-                      sum(!is.na(`unweighted_OR_CI_PPO.2.5%`)), 3),
-            bCAOR = round(sum((`weighted_OR_CI_b_PPO.2.5%` > 1 & 
-                          `weighted_OR_CI_b_PPO.97.5%` > 1) | (`weighted_OR_CI_b_PPO.2.5%` < 1 & 
-                          `weighted_OR_CI_b_PPO.97.5%` < 1) , na.rm = T)/
-                      sum(!is.na(`weighted_OR_CI_b_PPO.2.5%`)), 3),
-            ARR = round(sum((`unweighted_log_RR_CI_PPO.2.5%` > 0 & 
-                          `unweighted_log_RR_CI_PPO.97.5%` > 0) | 
-                            (`unweighted_log_RR_CI_PPO.2.5%` < 0 & 
-                          `unweighted_log_RR_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`unweighted_log_RR_CI_PPO.2.5%`)), 3),
-            bCARR = round(sum((`weighted_log_RR_95CI_bcontrol_PPO.2.5%` > 0 & 
-                          `weighted_log_RR_95CI_bcontrol_PPO.97.5%` > 0) | 
-                            `weighted_log_RR_95CI_bcontrol_PPO.2.5%` < 0 & 
-                          `weighted_log_RR_95CI_bcontrol_PPO.97.5%` < 0, na.rm = T)/
-                      sum(!is.na(`weighted_log_RR_95CI_bcontrol_PPO.2.5%`)), 3),
+                      sum(!is.na(`unweighted_OR_CI_PPO.2.5%`)), 2),
+            wOR = round(sum((`weighted_log_OR_both_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_OR_both_CI_PPO.97.5%` > 0) | (`weighted_log_OR_both_CI_PPO.2.5%` < 0 &
+                          `weighted_log_OR_both_CI_PPO.97.5%` < 0) , na.rm = T)/
+                      sum(!is.na(`weighted_log_OR_both_CI_PPO.2.5%`)), 2),
+            wOR_overall = round(sum((`weighted_log_OR_both_ov_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_OR_both_ov_CI_PPO.97.5%` > 0) | (`weighted_log_OR_both_ov_CI_PPO.2.5%` < 0 &
+                          `weighted_log_OR_both_ov_CI_PPO.97.5%` < 0) , na.rm = T)/
+                      sum(!is.na(`weighted_log_OR_both_ov_CI_PPO.2.5%`)), 2),
             Nothing = round(sum((RD_hypox_lower < 0 & RD_hypox_upper < 0) | (RD_hypox_lower > 0 & RD_hypox_upper > 0))/
-                                sum(!is.na(RD_hypox_lower)), 3),
+                                sum(!is.na(RD_hypox_lower)), 2),
             Hypoxemia = round(sum((RD_ED_lower < 0 & RD_ED_upper < 0) | 
                             (RD_ED_lower > 0 & RD_ED_upper > 0) )/
-                                sum(!is.na(RD_ED_lower)), 3),
+                                sum(!is.na(RD_ED_lower)), 2),
             ED = round(sum((RD_hosp_lower < 0 & RD_hosp_upper < 0) | 
                                (RD_hosp_lower > 0 & RD_hosp_upper > 0))/
-                                sum(!is.na(RD_hosp_lower)), 3),
+                                sum(!is.na(RD_hosp_lower)), 2),
             Hospitalized = round(sum((RD_death_lower < 0 & RD_death_upper < 0) |
                                 (RD_death_lower > 0 & RD_death_upper > 0), na.rm = T)/
-                                sum(!is.na(RD_death_lower)), 3)
+                                sum(!is.na(RD_death_lower)), 2)
              #Freq_P = round(sum(freq_pval < 0.05)/sum(!is.na(freq_pval)), 3)
             
             ) %>%
   kable(caption = "Power Scenarios Evenly Distributed Outcome", 
-      booktabs = T, align = "c", longtable = TRUE) %>%
-  kable_paper("hover")  %>% 
-  column_spec(1, width = "4em")  %>% 
-  kable_styling(latex_options = c("striped", "repeat_header"),
-      stripe_color = "gray!15")
-
-```
+      booktabs = T, align = "c", format = "latex") %>%
+  kable_paper("hover")   %>% 
+  column_spec(1, width = "4em") 
 
 
-```{r, echo = F}
-# make a plot of the power
+# supplementary table 
 results_all_extra %>% mutate_if(is.character, as.numeric) %>% group_by(Scenario) %>%
-  dplyr::summarize(PO = round(sum((OR_CI_PO1 > 1 & 
-                          OR_CI_PO2 > 1) |  (OR_CI_PO1 < 1 & 
-                          OR_CI_PO2 < 1), na.rm = T)/
-                      sum(!is.na(OR_CI_PO1)), 3),
-            CARD = round(sum((`weighted_RD_control_CI_PPO.2.5%` > 0 & 
-                          `weighted_RD_control_CI_PPO.97.5%` > 0) | (`weighted_RD_control_CI_PPO.2.5%` < 0 & 
-                          `weighted_RD_control_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`weighted_RD_control_CI_PPO.2.5%`)), 3),
-            OARD = round(sum((`weighted_RD_overall_CI_PPO.2.5%` > 0 & 
-                          `weighted_RD_overall_CI_PPO.97.5%` > 0) | (`weighted_RD_overall_CI_PPO.2.5%` < 0 & 
-                          `weighted_RD_overall_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`weighted_RD_overall_CI_PPO.97.5%`)), 3),
-            bCARD = round(sum((`weighted_RD_bcontrol_CI_PPO.2.5%` > 0 & 
-                          `weighted_RD_bcontrol_CI_PPO.97.5%` > 0) | (`weighted_RD_bcontrol_CI_PPO.2.5%` < 0 & 
-                          `weighted_RD_bcontrol_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`weighted_RD_bcontrol_CI_PPO.2.5%`)), 3),
-            bOARD = round(sum((`weighted_RD_boverall_CI_PPO.2.5%` > 0 & 
-                          `weighted_RD_boverall_CI_PPO.97.5%` > 0) | (`weighted_RD_boverall_CI_PPO.2.5%` < 0 & 
-                          `weighted_RD_boverall_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`weighted_RD_boverall_CI_PPO.97.5%`)), 3),
-            CAOR = round(sum((`weighted_OR_CI_PPO.2.5%` > 1 & 
-                          `weighted_OR_CI_PPO.97.5%` > 1) | (`weighted_OR_CI_PPO.2.5%` < 1 & 
-                          `weighted_OR_CI_PPO.97.5%` < 1) , na.rm = T)/
-                      sum(!is.na(`weighted_OR_CI_PPO.2.5%`)), 3),
-            OAOR = round(sum((`weighted_OR_overall_CI_PPO.2.5%` > 1 & 
-                          `weighted_OR_overall_CI_PPO.97.5%` > 1) | (`weighted_OR_overall_CI_PPO.2.5%` < 1 & 
-                          `weighted_OR_overall_CI_PPO.97.5%` < 1), na.rm = T)/
-                      sum(!is.na(`weighted_OR_overall_CI_PPO.2.5%`)), 3),
-            bCAOR = round(sum((`weighted_OR_CI_b_PPO.2.5%` > 1 & 
-                          `weighted_OR_CI_b_PPO.97.5%` > 1) | (`weighted_OR_CI_b_PPO.2.5%` < 1 & 
-                          `weighted_OR_CI_b_PPO.97.5%` < 1) , na.rm = T)/
-                      sum(!is.na(`weighted_OR_CI_b_PPO.2.5%`)), 3),
-            bOAOR = round(sum((`weighted_OR_boverall_CI_PPO.2.5%` > 1 & 
-                          `weighted_OR_boverall_CI_PPO.97.5%` > 1) | (`weighted_OR_boverall_CI_PPO.2.5%` < 1 & 
-                          `weighted_OR_boverall_CI_PPO.97.5%` < 1), na.rm = T)/
-                      sum(!is.na(`weighted_OR_overall_CI_PPO.2.5%`)), 3),
-            CARR = round(sum((`weighted_log_RR_95CI_control_PPO.2.5%` > 0 & 
-                          `weighted_log_RR_95CI_control_PPO.97.5%` > 0) | `weighted_log_RR_95CI_control_PPO.2.5%` < 0 & 
-                          `weighted_log_RR_95CI_control_PPO.97.5%` < 0, na.rm = T)/
-                      sum(!is.na(`weighted_log_RR_95CI_control_PPO.2.5%`)), 3),
-            OARR = round(sum((`weighted_log_RR_95CI_overall_PPO.2.5%` > 0 & 
-                          `weighted_log_RR_95CI_overall_PPO.97.5%` > 0) | 
-                            (`weighted_log_RR_95CI_overall_PPO.2.5%` < 0 & 
-                          `weighted_log_RR_95CI_overall_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`weighted_log_RR_95CI_overall_PPO.2.5%`)), 3),
-            bCARR = round(sum((`weighted_log_RR_95CI_bcontrol_PPO.2.5%` > 0 & 
-                          `weighted_log_RR_95CI_bcontrol_PPO.97.5%` > 0) | 
-                            `weighted_log_RR_95CI_bcontrol_PPO.2.5%` < 0 & 
-                          `weighted_log_RR_95CI_bcontrol_PPO.97.5%` < 0, na.rm = T)/
-                      sum(!is.na(`weighted_log_RR_95CI_bcontrol_PPO.2.5%`)), 3),
-            bOARR = round(sum((`weighted_log_RR_95CI_boverall_PPO.2.5%` > 0 & 
-                          `weighted_log_RR_95CI_boverall_PPO.97.5%` > 0) | 
-                            (`weighted_log_RR_95CI_boverall_PPO.2.5%` < 0 & 
-                          `weighted_log_RR_95CI_boverall_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`weighted_log_RR_95CI_boverall_PPO.2.5%`)), 3),
-            NB = round(sum((Freq_NB_Lower > 0 & Freq_NB_Upper > 0) | (Freq_NB_Lower < 0 & Freq_NB_Upper < 0))/
-                                    sum(!is.na(Freq_NB_Lower)), 3),
-            Nothing = round(sum((RD_hypox_lower < 0 & RD_hypox_upper < 0) | (RD_hypox_lower > 0 & RD_hypox_upper > 0))/
-                                sum(!is.na(RD_hypox_lower)), 3),
-            Hypoxemia = round(sum((RD_ED_lower < 0 & RD_ED_upper < 0) | 
-                            (RD_ED_lower > 0 & RD_ED_upper > 0) )/
-                                sum(!is.na(RD_ED_lower)), 3),
-            ED = round(sum((RD_hosp_lower < 0 & RD_hosp_upper < 0) | 
-                               (RD_hosp_lower > 0 & RD_hosp_upper > 0))/
-                                sum(!is.na(RD_hosp_lower)), 3),
-            Hospitalized = round(sum((RD_death_lower < 0 & RD_death_upper < 0) |
-                                (RD_death_lower > 0 & RD_death_upper > 0), na.rm = T)/
-                                sum(!is.na(RD_death_lower)), 3)
-            
-            ) %>% filter(Scenario != "Null") %>%
-  pivot_longer(cols = c(PO, CARD, OARD, bCARD, bOARD, CAOR, OAOR, 
-                        bCAOR, bOAOR, CARR, OARR, bCARR, bOARR, NB), names_to = "Method", values_to = "Power") %>%
-  mutate(Method = factor(Method, levels = c("PO", "NB", "CARD", "OARD", "bCARD", "bOARD", 
-                                            "CAOR", "OAOR", "bCAOR", "bOAOR", "CARR", "OARR", "bCARR", "bOARR"))) %>%
-  ggplot(aes(x = Method, y = Power)) + geom_point() + facet_wrap(vars(Scenario), ncol = 2) +
-  geom_segment( aes(x=Method, xend=Method, y=0, yend=Power)) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) + theme_bw()
+  dplyr::summarize(
+            wOR_sum = round(sum((`weighted_log_OR_bcontrol_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_OR_bcontrol_CI_PPO.97.5%` > 0) | (`weighted_log_OR_bcontrol_CI_PPO.2.5%` < 0 &
+                          `weighted_log_OR_bcontrol_CI_PPO.97.5%` < 0) , na.rm = T)/
+                      sum(!is.na(`weighted_log_OR_bcontrol_CI_PPO.2.5%`)), 2),
+            wOR_cumulative = round(sum((`weighted_log_OR_cum_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_OR_cum_CI_PPO.97.5%` > 0) | (`weighted_log_OR_cum_CI_PPO.2.5%` < 0 &
+                          `weighted_log_OR_cum_CI_PPO.97.5%` < 0) , na.rm = T)/
+                      sum(!is.na(`weighted_log_OR_cum_CI_PPO.2.5%`)), 2),
+            ARD = round(sum((`unweighted_RD_CI_PPO.2.5%` > 0 & 
+                          `unweighted_RD_CI_PPO.97.5%` > 0) | (`unweighted_RD_CI_PPO.2.5%` < 0 & 
+                          `unweighted_RD_CI_PPO.97.5%` < 0), na.rm = T)/
+                      sum(!is.na(`unweighted_RD_CI_PPO.97.5%`)), 2),
+            wRD = round(sum((`weighted_RD_both_CI_PPO.2.5%` > 0 & 
+                          `weighted_RD_both_CI_PPO.97.5%` > 0) | (`weighted_RD_both_CI_PPO.2.5%` < 0 & 
+                          `weighted_RD_both_CI_PPO.97.5%` < 0), na.rm = T)/
+                      sum(!is.na(`weighted_RD_both_CI_PPO.2.5%`)), 2),
+            ARR = round(sum((`unweighted_log_RR_CI_PPO.2.5%` > 0 & 
+                          `unweighted_log_RR_CI_PPO.97.5%` > 0) | 
+                            (`unweighted_log_RR_CI_PPO.2.5%` < 0 & 
+                          `unweighted_log_RR_CI_PPO.97.5%` < 0), na.rm = T)/
+                      sum(!is.na(`unweighted_log_RR_CI_PPO.2.5%`)), 2),
+            wRR = round(sum((`weighted_log_RR_both_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_RR_both_CI_PPO.97.5%` > 0) | 
+                            `weighted_log_RR_both_CI_PPO.2.5%` < 0 & 
+                          `weighted_log_RR_both_CI_PPO.97.5%` < 0, na.rm = T)/
+                      sum(!is.na(`weighted_log_RR_both_CI_PPO.2.5%`)), 2),
+            ARR_ge = round(sum((`unweighted_log_RR_ge_CI_PPO.2.5%` > 0 & 
+                          `unweighted_log_RR_ge_CI_PPO.97.5%` > 0) | 
+                            (`unweighted_log_RR_ge_CI_PPO.2.5%` < 0 & 
+                          `unweighted_log_RR_ge_CI_PPO.97.5%` < 0), na.rm = T)/
+                      sum(!is.na(`unweighted_log_RR_ge_CI_PPO.2.5%`)), 2),
+            wRR_ge = round(sum((`weighted_log_RR_ge_both_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_RR_ge_both_CI_PPO.97.5%` > 0) | 
+                            `weighted_log_RR_ge_both_CI_PPO.2.5%` < 0 & 
+                          `weighted_log_RR_ge_both_CI_PPO.97.5%` < 0, na.rm = T)/
+                      sum(!is.na(`weighted_log_RR_ge_both_CI_PPO.2.5%`)), 2)
+            ) %>%
+  kable(caption = "Power Scenarios Evenly Distributed Outcome Supplement", 
+      booktabs = T, align = "c", format = "latex") %>%
+  kable_paper("hover")   %>% 
+  column_spec(1, width = "4em") 
 ```
+
+
 
 
 \newpage 
@@ -557,7 +574,12 @@ p1 <- scenarios1  %>%
   mutate(Outcome = factor(Outcome, levels = c("Nothing", "Hypoxemia", "ED Visit", "Hopsitalization", "Death"))) %>%
   ggplot(aes(x = Scenario, y = Proportion, fill = Outcome)) + geom_bar(stat = "identity") + 
   scale_x_discrete(guide = guide_axis(angle = 90)) +
-  theme_bw(base_size = 10) + scale_fill_brewer(palette = "Blues")
+  theme_bw(base_size = 10) + scale_fill_brewer(palette = "Blues") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14)) 
 
 rd1 <- cumsum(pt1) - cumsum(pc)
 rd2 <- cumsum(pt2) - cumsum(pc)
@@ -590,8 +612,15 @@ p2 <- risk_dif1 %>% filter(Scenario != "Null") %>%
   scale_linetype_manual(values = c(rep(c("longdash", "solid"), 4))) +
   scale_color_manual(values = c(rep(brewer.pal(8, "Paired")[2], 2), 
                                 rep(brewer.pal(8, "Paired")[4], 2), rep(brewer.pal(8, "Paired")[6], 2),
-                                rep(brewer.pal(8, "Paired")[8], 2)))  + scale_y_continuous(labels=scaleFUN) # & 
-   #theme(legend.key.size = unit(3, "lines")) 
+                                rep(brewer.pal(8, "Paired")[8], 2)))  + scale_y_continuous(labels=scaleFUN)  + 
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14)) + 
+  scale_x_discrete(labels = c("Nothing" = "1|2",
+                              "Hypoxemia" = "2|3", 
+                              "ED Visit" = "3|4", 
+                              "Hopsitalization" = "4|5"))
 
 #c(brewer.pal(10, "Paired")[10], brewer.pal(8, "Paired")))
 
@@ -625,7 +654,57 @@ p3 <- rel_risk1 %>% filter(Scenario != "Null") %>%
   scale_linetype_manual(values = c(rep(c("longdash", "solid"), 4))) +
   scale_color_manual(values = c(rep(brewer.pal(8, "Paired")[2], 2), 
                                 rep(brewer.pal(8, "Paired")[4], 2), rep(brewer.pal(8, "Paired")[6], 2),
-                                rep(brewer.pal(8, "Paired")[8], 2)))
+                                rep(brewer.pal(8, "Paired")[8], 2)))  + 
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14)) + 
+  scale_x_discrete(labels = c("Nothing" = "\u2264 1",
+                              "Hypoxemia" = "\u2264 2", 
+                              "ED Visit" = "\u2264 3", 
+                              "Hopsitalization" = "\u2264 4"))
+
+#rr greater than or equal to 
+rr1 <- revcumsum(pc) / revcumsum(pt1)
+rr2 <- revcumsum(pc) / revcumsum(pt2)
+rr3 <- revcumsum(pc) / revcumsum(pt3)
+rr4 <- revcumsum(pc) / revcumsum(pt4)
+rr5 <- revcumsum(pc) / revcumsum(pt5)
+rr6 <- revcumsum(pc) / revcumsum(pt6) 
+rr7 <- revcumsum(pc) / revcumsum(pt7)
+rr8 <- revcumsum(pc) / revcumsum(pt8) 
+rr9 <- revcumsum(pc) / revcumsum(pt9)
+
+rel_risk1 <- as.data.frame(rbind(rr1, rr2, rr3, rr4, rr5, rr6, rr7, rr8, rr9))
+colnames(rel_risk1) <- c("Nothing", "Hypoxemia", "ED Visit", "Hopsitalization", "Death")
+rel_risk1$Scenario <- c("Null", "Low RD", "High RD", "Low RR", "High RR", "Low PO", "High PO", 
+                         "NP 1", "NP 2")
+
+p3ge <- rel_risk1 %>% filter(Scenario != "Null") %>%
+  pivot_longer(cols = c("Nothing", "Hypoxemia", "ED Visit", "Hopsitalization", "Death"), 
+               names_to = "Outcome", values_to = "RR") %>% 
+  filter(Outcome != "Nothing")  %>%
+  mutate(Outcome = factor(Outcome, levels = c("Hypoxemia", "ED Visit", "Hopsitalization", "Death")),
+         Scenario = factor(Scenario, levels = c("Low PO", "High PO", "Low RD", "High RD", 
+                                                "Low RR", "High RR", 
+                                                "NP 1", "NP 2")))  %>%
+  group_by(Scenario) %>% 
+  ggplot(aes(x = Outcome, y = RR, color = Scenario, group = Scenario, linetype = Scenario)) + 
+  geom_line(linewidth = 1) + geom_point(show.legend = F) +
+  theme_bw(base_size = 10) + ylab("Cumulative Relative Risk") + 
+  scale_linetype_manual(values = c(rep(c("longdash", "solid"), 4))) +
+  scale_color_manual(values = c(rep(brewer.pal(8, "Paired")[2], 2), 
+                                rep(brewer.pal(8, "Paired")[4], 2), rep(brewer.pal(8, "Paired")[6], 2),
+                                rep(brewer.pal(8, "Paired")[8], 2))) + 
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14)) + 
+  scale_x_discrete(labels = c("Hypoxemia" = "\u2265 2", 
+                              "ED Visit" = "\u2265 3", 
+                              "Hopsitalization" = "\u2265 4", 
+                              "Death" = "\u2265 5"))
+
 
 
 or1 <- (cumsum(pt1)/ (1- cumsum(pt1))) / (cumsum(pc) / (1 - cumsum(pc)))
@@ -657,44 +736,79 @@ p4 <- odds_ratio1 %>% filter(Scenario != "Null") %>%
   scale_linetype_manual(values = c(rep(c("longdash", "solid"), 4))) +
   scale_color_manual(values = c(rep(brewer.pal(8, "Paired")[2], 2), 
                                 rep(brewer.pal(8, "Paired")[4], 2), rep(brewer.pal(8, "Paired")[6], 2),
-                                rep(brewer.pal(8, "Paired")[8], 2)))
+                                rep(brewer.pal(8, "Paired")[8], 2)))  + 
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 14), legend.text = element_text(size = 9),
+        legend.title = element_text(size = 14), 
+        strip.text.x = element_text(size = 14)) + 
+  scale_x_discrete(labels = c("Nothing" = "1|2",
+                              "Hypoxemia" = "2|3", 
+                              "ED Visit" = "3|4", 
+                              "Hopsitalization" = "4|5"))
 
 legend <- get_legend(
   # create some space to the left of the legend
   p2 + theme(legend.key.size=unit(2.5,"lines")))
 
 library(cowplot)
-plots <- plot_grid(p1,  p4+ theme(legend.position="none"), p2+ theme(legend.position="none"), p3+ theme(legend.position="none"), labels = c("A", "B", "C", "D"))
+plots <- plot_grid(p4+ theme(legend.position="none"), p2+ theme(legend.position="none"), 
+                   p3+ theme(legend.position="none"),
+                   p3ge + theme(legend.position = "none"), labels = c("A", "B", "C", "D"))
 
-plot_grid(plots, legend, rel_widths = c(3, 0.8))
+plot_grid(plots, legend, rel_widths = c(3, 0.5))
 
 #correct plot to save
-#ggsave("covid_out_scenarios.png", height = 8, width = 8)
+#ggsave("covid_out_scenarios_040725.png", height = 8, width = 8, dpi = 600)
+
+
+# plot to save for supplement showing distributions 
+
+plots <- plot_grid(p1_even + theme(legend.position = "none"), p1+ theme(legend.position = "none"),
+          labels = c("A", "B"))
+legend <- get_legend(
+  # create some space to the left of the legend
+  p1_even)
+plot_grid(plots, legend, rel_widths = c(3, 0.5))
+
+#ggsave("scenario_distributions_040725.png", height = 6, width = 9, dpi = 600)
 
 ```
 
 ```{r, echo = F}
-setwd("~/Documents/Dissertation/Simulation 101424/")
+setwd("~/Documents/Dissertation/Paper 1/Simulation_040725/")
 
-results1 <- rbind(as.data.frame(readRDS("results_array_19.rds"))[1:1000,], as.data.frame(readRDS("results_array_20.rds"))[1:1000,])
+results1 <- rbind(as.data.frame(readRDS("results_array_040725_19.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_20.rds"))[1:1000,])
 results1$Scenario <- "Null"
-results2 <- rbind(as.data.frame(readRDS("results_array_21.rds"))[1:1000,], as.data.frame(readRDS("results_array_22.rds"))[1:1000,])
+results2 <- rbind(as.data.frame(readRDS("results_array_040725_21.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_22.rds"))[1:1000,])
 results2$Scenario <- "NP 1"
-results3 <- rbind(as.data.frame(readRDS("results_array_23.rds"))[1:1000,], as.data.frame(readRDS("results_array_24.rds"))[1:1000,])
+results3 <- rbind(as.data.frame(readRDS("results_array_040725_23.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_24.rds"))[1:1000,])
 results3$Scenario <- "NP 2"
-results4 <- rbind(as.data.frame(readRDS("results_array_27.rds"))[1:1000,], as.data.frame(readRDS("results_array_28.rds"))[1:1000,])
+results4 <- rbind(as.data.frame(readRDS("results_array_040725_27.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_28.rds"))[1:1000,])
 results4$Scenario <- "NP 3"
-results5 <- rbind(as.data.frame(readRDS("results_array_25.rds"))[1:1000,], as.data.frame(readRDS("results_array_26.rds"))[1:1000,])
+results5 <- rbind(as.data.frame(readRDS("results_array_040725_25.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_26.rds"))[1:1000,])
 results5$Scenario <- "NP 4"
-results6 <- rbind(as.data.frame(readRDS("results_array_29.rds"))[1:1000,], as.data.frame(readRDS("results_array_30.rds"))[1:1000,])
+results6 <- rbind(as.data.frame(readRDS("results_array_040725_29.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_30.rds"))[1:1000,])
 results6$Scenario <- "Low PO"
-results7 <- rbind(as.data.frame(readRDS("results_array_31.rds"))[1:1000,], as.data.frame(readRDS("results_array_32.rds"))[1:1000,])
+results7 <- rbind(as.data.frame(readRDS("results_array_040725_31.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_32.rds"))[1:1000,])
 results7$Scenario <- "High PO"
-results8 <- rbind(as.data.frame(readRDS("results_array_33.rds"))[1:1000,], as.data.frame(readRDS("results_array_34.rds"))[1:1000,])
+results8 <- rbind(as.data.frame(readRDS("results_array_040725_33.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_34.rds"))[1:1000,])
 results8$Scenario <- "NP 5"
-results9 <- rbind(as.data.frame(readRDS("results_array_35.rds"))[1:1000,], as.data.frame(readRDS("results_array_36.rds"))[1:1000,])
+results9 <- rbind(as.data.frame(readRDS("results_array_040725_35.rds"))[1:1000,],
+                  as.data.frame(readRDS("results_array_040725_36.rds"))[1:1000,])
 results9$Scenario <- "NP 6"
 ```
+
+
+
+
 
 
 ```{r, echo = F}
@@ -714,73 +828,84 @@ results_all_extra %>% mutate_if(is.character, as.numeric) %>% group_by(Scenario)
   dplyr::summarize(PO = round(sum((OR_CI_PO1 > 1 & 
                           OR_CI_PO2 > 1) |  (OR_CI_PO1 < 1 & 
                           OR_CI_PO2 < 1), na.rm = T)/
-                      sum(!is.na(OR_CI_PO1)), 3),
+                      sum(!is.na(OR_CI_PO1)), 2),
             NB = round(sum((Freq_NB_Lower > 0 & Freq_NB_Upper > 0) | (Freq_NB_Lower < 0 & Freq_NB_Upper < 0))/
-                                    sum(!is.na(Freq_NB_Lower)), 3),
-            ARD = round(sum((`unweighted_RD_CI_PPO.2.5%` > 0 & 
-                          `unweighted_RD_CI_PPO.97.5%` > 0) | (`unweighted_RD_CI_PPO.2.5%` < 0 & 
-                          `unweighted_RD_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`unweighted_RD_CI_PPO.97.5%`)), 3),
-            CARD = round(sum((`weighted_RD_bcontrol_CI_PPO.2.5%` > 0 & 
-                          `weighted_RD_bcontrol_CI_PPO.97.5%` > 0) | (`weighted_RD_bcontrol_CI_PPO.2.5%` < 0 & 
-                          `weighted_RD_bcontrol_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`weighted_RD_bcontrol_CI_PPO.2.5%`)), 3),
+                                    sum(!is.na(Freq_NB_Lower)), 2),
             AOR = round(sum((`unweighted_OR_CI_PPO.2.5%` > 1 & 
                           `unweighted_OR_CI_PPO.97.5%` > 1) | (`unweighted_OR_CI_PPO.2.5%` < 1 & 
                           `unweighted_OR_CI_PPO.97.5%` < 1), na.rm = T)/
-                      sum(!is.na(`unweighted_OR_CI_PPO.2.5%`)), 3),
-            CAOR = round(sum((`weighted_OR_CI_b_PPO.2.5%` > 1 & 
-                          `weighted_OR_CI_b_PPO.97.5%` > 1) | (`weighted_OR_CI_b_PPO.2.5%` < 1 & 
-                          `weighted_OR_CI_b_PPO.97.5%` < 1) , na.rm = T)/
-                      sum(!is.na(`weighted_OR_CI_b_PPO.2.5%`)), 3),
-            ARR = round(sum((`unweighted_log_RR_CI_PPO.2.5%` > 0 & 
-                          `unweighted_log_RR_CI_PPO.97.5%` > 0) | 
-                            (`unweighted_log_RR_CI_PPO.2.5%` < 0 & 
-                          `unweighted_log_RR_CI_PPO.97.5%` < 0), na.rm = T)/
-                      sum(!is.na(`unweighted_log_RR_CI_PPO.2.5%`)), 3),
-            CARR = round(sum((`weighted_log_RR_95CI_bcontrol_PPO.2.5%` > 0 & 
-                          `weighted_log_RR_95CI_bcontrol_PPO.97.5%` > 0) | 
-                            `weighted_log_RR_95CI_bcontrol_PPO.2.5%` < 0 & 
-                          `weighted_log_RR_95CI_bcontrol_PPO.97.5%` < 0, na.rm = T)/
-                      sum(!is.na(`weighted_log_RR_95CI_bcontrol_PPO.2.5%`)), 3),
-            # PPO_NB = round(sum((`NB_CI_PPO.2.5%` > 0 &
-            #               `NB_CI_PPO.97.5%` > 0) |
-            #                 (`NB_CI_PPO.2.5%` < 0 &
-            #                `NB_CI_PPO.97.5%` < 0), na.rm = T)/
-            #           sum(!is.na(`NB_CI_PPO.2.5%`)), 3),
+                      sum(!is.na(`unweighted_OR_CI_PPO.2.5%`)), 2),
+            wOR = round(sum((`weighted_log_OR_both_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_OR_both_CI_PPO.97.5%` > 0) | (`weighted_log_OR_both_CI_PPO.2.5%` < 0 &
+                          `weighted_log_OR_both_CI_PPO.97.5%` < 0) , na.rm = T)/
+                      sum(!is.na(`weighted_log_OR_both_CI_PPO.2.5%`)), 2),
+            wOR_overall = round(sum((`weighted_log_OR_both_ov_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_OR_both_ov_CI_PPO.97.5%` > 0) | (`weighted_log_OR_both_ov_CI_PPO.2.5%` < 0 &
+                          `weighted_log_OR_both_ov_CI_PPO.97.5%` < 0) , na.rm = T)/
+                      sum(!is.na(`weighted_log_OR_both_ov_CI_PPO.2.5%`)), 2),
             Nothing = round(sum((RD_hypox_lower < 0 & RD_hypox_upper < 0) | (RD_hypox_lower > 0 & RD_hypox_upper > 0))/
-                                sum(!is.na(RD_hypox_lower)), 3),
+                                sum(!is.na(RD_hypox_lower)), 2),
             Hypoxemia = round(sum((RD_ED_lower < 0 & RD_ED_upper < 0) | 
                             (RD_ED_lower > 0 & RD_ED_upper > 0) )/
-                                sum(!is.na(RD_ED_lower)), 3),
+                                sum(!is.na(RD_ED_lower)), 2),
             ED = round(sum((RD_hosp_lower < 0 & RD_hosp_upper < 0) | 
                                (RD_hosp_lower > 0 & RD_hosp_upper > 0), na.rm = T)/
-                                sum(!is.na(RD_hosp_lower)), 3),
+                                sum(!is.na(RD_hosp_lower)), 2),
             Hospitalized = round(sum((RD_death_lower < 0 & RD_death_upper < 0) |
                                 (RD_death_lower > 0 & RD_death_upper > 0), na.rm = T)/
-                                sum(!is.na(RD_death_lower)), 3)
+                                sum(!is.na(RD_death_lower)), 2)
            # Freq = round(sum(freq_pval < 0.05)/sum(!is.na(freq_pval)), 3)
             
             ) %>%
   kable(caption = "Power Scenarios Mimicking COVID-OUT", 
-      booktabs = T, align = "c", longtable = TRUE) %>%
-  kable_paper("hover")  %>% 
-  column_spec(1, width = "4em")  %>% 
-  kable_styling(latex_options = c("striped", "repeat_header"),
-      stripe_color = "gray!15")
+      booktabs = T, align = "c", format = "latex") %>%
+  kable_paper("hover") 
 
+
+# Supplement Table
+
+results_all_extra %>% mutate_if(is.character, as.numeric) %>% group_by(Scenario) %>%
+  dplyr::summarize(
+            wOR_sum = round(sum((`weighted_log_OR_bcontrol_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_OR_bcontrol_CI_PPO.97.5%` > 0) | (`weighted_log_OR_bcontrol_CI_PPO.2.5%` < 0 &
+                          `weighted_log_OR_bcontrol_CI_PPO.97.5%` < 0) , na.rm = T)/
+                      sum(!is.na(`weighted_log_OR_bcontrol_CI_PPO.2.5%`)), 2),
+            wOR_cumulative = round(sum((`weighted_log_OR_cum_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_OR_cum_CI_PPO.97.5%` > 0) | (`weighted_log_OR_cum_CI_PPO.2.5%` < 0 &
+                          `weighted_log_OR_cum_CI_PPO.97.5%` < 0) , na.rm = T)/
+                      sum(!is.na(`weighted_log_OR_cum_CI_PPO.2.5%`)), 2),
+            ARD = round(sum((`unweighted_RD_CI_PPO.2.5%` > 0 & 
+                          `unweighted_RD_CI_PPO.97.5%` > 0) | (`unweighted_RD_CI_PPO.2.5%` < 0 & 
+                          `unweighted_RD_CI_PPO.97.5%` < 0), na.rm = T)/
+                      sum(!is.na(`unweighted_RD_CI_PPO.97.5%`)), 2),
+            wRD = round(sum((`weighted_RD_both_CI_PPO.2.5%` > 0 & 
+                          `weighted_RD_both_CI_PPO.97.5%` > 0) | (`weighted_RD_both_CI_PPO.2.5%` < 0 & 
+                          `weighted_RD_both_CI_PPO.97.5%` < 0), na.rm = T)/
+                      sum(!is.na(`weighted_RD_both_CI_PPO.2.5%`)), 2),
+            ARR_le = round(sum((`unweighted_log_RR_CI_PPO.2.5%` > 0 & 
+                          `unweighted_log_RR_CI_PPO.97.5%` > 0) | 
+                            (`unweighted_log_RR_CI_PPO.2.5%` < 0 & 
+                          `unweighted_log_RR_CI_PPO.97.5%` < 0), na.rm = T)/
+                      sum(!is.na(`unweighted_log_RR_CI_PPO.2.5%`)), 2),
+            wRR_le = round(sum((`weighted_log_RR_both_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_RR_both_CI_PPO.97.5%` > 0) | 
+                            `weighted_log_RR_both_CI_PPO.2.5%` < 0 & 
+                          `weighted_log_RR_both_CI_PPO.97.5%` < 0, na.rm = T)/
+                      sum(!is.na(`weighted_log_RR_both_CI_PPO.2.5%`)), 2),
+            ARR_ge = round(sum((`unweighted_log_RR_ge_CI_PPO.2.5%` > 0 & 
+                          `unweighted_log_RR_ge_CI_PPO.97.5%` > 0) | 
+                            (`unweighted_log_RR_ge_CI_PPO.2.5%` < 0 & 
+                          `unweighted_log_RR_ge_CI_PPO.97.5%` < 0), na.rm = T)/
+                      sum(!is.na(`unweighted_log_RR_ge_CI_PPO.2.5%`)), 2),
+            wRR_ge = round(sum((`weighted_log_RR_ge_both_CI_PPO.2.5%` > 0 & 
+                          `weighted_log_RR_ge_both_CI_PPO.97.5%` > 0) | 
+                            `weighted_log_RR_ge_both_CI_PPO.2.5%` < 0 & 
+                          `weighted_log_RR_ge_both_CI_PPO.97.5%` < 0, na.rm = T)/
+                      sum(!is.na(`weighted_log_RR_ge_both_CI_PPO.2.5%`)), 2)
+            ) %>%
+  kable(caption = "Power Scenarios Mimicking COVID-OUT Supplement", 
+      booktabs = T, align = "c", format = "latex") %>%
+  kable_paper("hover") 
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
 

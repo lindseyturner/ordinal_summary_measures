@@ -1,24 +1,52 @@
 # simulation setup 
 # data generation scenarios 
 # two different data generations each with 5 categories
-# the first scenario will have equal distribution to outcomes 
-# 20%, 20%, 20%, 20%, 20%
-# the second scenario will mimic the covid out data
+# the first scenario will mimic the covid out data
 # 70%, 18%, 9%, 2%, 1%
-
+# second scenario will have equal distribution to outcomes 
+# 20%, 20%, 20%, 20%, 20%
 
 # different treatment effects 
 # null scenario - treatment and control are the same 
 # proportional odds scenario - 2 different settings - one small effect and one large effect
-# non proportional odds scenario 
+# non proportional odds scenario - relatively constant risk difference
 
 # what to output: 
-# point estimates and credible intervals for each model (PPO, PO, polr, mlr) 
+# point estimates and credible intervals for each model (PPO, PO, polr, mlr) and 
+# summary measure (RD, weighted RD, OR, weighted OR, WR)
+
+# what to measure: 
+# power, average z score (standardized effect size), bias, rMSE, coverage rates
+
+# to do: 
+# calculate the small and large effects for the proportional odds scenario 
+# determine the non proportional odds scenario
+# generate data 
+# calculate point estimates and credible intervals 
+# calculate measures
+
+
 
 # generate data 
 # function to generate data 
-# 50% to treatment and 50% to control 
+# start with 50% to treatment and 50% to control 
+#
 
+determine_start_i <- function(val) {
+  if (val%%5 == 1){
+    start <- 1
+  } else if (val%%5 == 2) {
+    start <- 401
+  } else if (val%%5 == 3) {
+    start <- 801
+  } else if (val%%5 == 4) {
+    start <- 1201
+  } else if (val%%5 == 0) {
+    start <- 1601
+  }
+  
+  return(start)
+}
 
 determine_start_i2 <- function(val) {
   if (val%%2 == 1){
@@ -28,6 +56,125 @@ determine_start_i2 <- function(val) {
   }
   
   return(start)
+}
+
+DataGen <- function(n) {
+  pc1 <- c(0.2, 0.2, 0.2, 0.2, 0.2)
+  pt_1_RD_constant <- c(0.25, 0.2, 0.2, 0.2, 0.15)
+  beta1 <- 0.1
+  pt_1_PO_low <- c(invlogit(logit(pc1[1]) + beta1),
+                   invlogit(logit(pc1[1] + pc1[2]) + beta1) - invlogit(logit(pc1[1]) + beta1),
+                   invlogit(logit(pc1[1] + pc1[2] + pc1[3]) + beta1) - invlogit(logit(pc1[1] + pc1[2]) + beta1),
+                   invlogit(logit(pc1[1] + pc1[2] + pc1[3] + pc1[4]) + beta1) - invlogit(logit(pc1[1] + pc1[2] + pc1[3]) + beta1),
+                   1 - invlogit(logit(pc1[1] + pc1[2] + pc1[3] + pc1[4]) + beta1))
+  beta2 <- 0.5
+  pt_1_PO_high <- c(invlogit(logit(pc1[1]) + beta2),
+                    invlogit(logit(pc1[1] + pc1[2]) + beta2) - invlogit(logit(pc1[1]) + beta2),
+                    invlogit(logit(pc1[1] + pc1[2] + pc1[3]) + beta2) - invlogit(logit(pc1[1] + pc1[2]) + beta2),
+                    invlogit(logit(pc1[1] + pc1[2] + pc1[3] + pc1[4]) + beta2) - invlogit(logit(pc1[1] + pc1[2] + pc1[3]) + beta2),
+                    1 - invlogit(logit(pc1[1] + pc1[2] + pc1[3] + pc1[4]) + beta2))
+  
+  # scenario 1, null treatment effect
+  dat_1_null <- data.frame(matrix(NA, nrow = n, ncol = 3))
+  colnames(dat_1_null) <- c("y", "trt", "trt_05")
+  dat_1_null$trt <- rbinom(n, 1, 0.5)
+  dat_1_null$trt_05 <- case_when(dat_1_null$trt == 0 ~ -0.5, 
+                                 dat_1_null$trt == 1 ~ 0.5)
+  dat_1_null$y <- sample(1:5, n, replace = TRUE, prob = pc1)
+  
+  #scenario 1, constant RD 
+  dat_1_RD_constant <- data.frame(matrix(NA, nrow = n, ncol = 3))
+  colnames(dat_1_RD_constant) <- c("y", "trt", "trt_05")
+  dat_1_RD_constant$trt <- rbinom(n, 1, 0.5)
+  dat_1_RD_constant$trt_05 <- case_when(dat_1_RD_constant$trt == 0 ~ -0.5, 
+                                        dat_1_RD_constant$trt == 1 ~ 0.5)
+  dat_1_RD_constant$y <- case_when(dat_1_RD_constant$trt == 0 ~ sample(1:5,n,replace=TRUE,prob=pc1), 
+                                   dat_1_RD_constant$trt == 1 ~ sample(1:5,n,replace=TRUE,prob=pt_1_RD_constant))
+  
+  # scenario 1, small PO treatment effect 
+  dat_1_RD_PO_low <- data.frame(matrix(NA, nrow = n, ncol = 3))
+  colnames(dat_1_RD_PO_low) <- c("y", "trt", "trt_05")
+  dat_1_RD_PO_low$trt <- rbinom(n, 1, 0.5)
+  dat_1_RD_PO_low$trt_05 <- case_when(dat_1_RD_PO_low$trt == 0 ~ -0.5, 
+                                      dat_1_RD_PO_low$trt == 1 ~ 0.5)
+  dat_1_RD_PO_low$y <- case_when(dat_1_RD_PO_low$trt == 0 ~ sample(1:5,n,replace=TRUE,prob=pc1), 
+                                 dat_1_RD_PO_low$trt == 1 ~ sample(1:5,n,replace=TRUE,prob=pt_1_PO_low))
+  
+  
+  # scenario 1, large PO treatment effect 
+  dat_1_RD_PO_high <- data.frame(matrix(NA, nrow = n, ncol = 3))
+  colnames(dat_1_RD_PO_high) <- c("y", "trt", "trt_05")
+  dat_1_RD_PO_high$trt <- rbinom(n, 1, 0.5)
+  dat_1_RD_PO_high$trt_05 <- case_when(dat_1_RD_PO_high$trt == 0 ~ -0.5, 
+                                       dat_1_RD_PO_high$trt == 1 ~ 0.5)
+  dat_1_RD_PO_high$y <- case_when(dat_1_RD_PO_high$trt == 0 ~ sample(1:5,n,replace=TRUE,prob=pc1), 
+                                  dat_1_RD_PO_high$trt == 1 ~ sample(1:5,n,replace=TRUE,prob=pt_1_PO_high))
+  
+  
+  # scenario 2 probabilities
+  pc2 <- c(0.70, 0.18, 0.09, 0.02, 0.01)
+  pt_2_RD_constant <- c(0.71, 0.18, 0.09, 0.015, 0.005)
+  pt_2_PO_low <- c(invlogit(logit(pc2[1]) + beta1),
+                   invlogit(logit(pc2[1] + pc2[2]) + beta1) - invlogit(logit(pc2[1]) + beta1),
+                   invlogit(logit(pc2[1] + pc2[2] + pc2[3]) + beta1) - invlogit(logit(pc2[1] + pc2[2]) + beta1),
+                   invlogit(logit(pc2[1] + pc2[2] + pc2[3] + pc2[4]) + beta1) - invlogit(logit(pc2[1] + pc2[2] + pc2[3]) + beta1),
+                   1 - invlogit(logit(pc2[1] + pc2[2] + pc2[3] + pc2[4]) + beta1))
+  pt_2_PO_high <- c(invlogit(logit(pc2[1]) + beta2),
+                    invlogit(logit(pc2[1] + pc2[2]) + beta2) - invlogit(logit(pc2[1]) + beta2),
+                    invlogit(logit(pc2[1] + pc2[2] + pc2[3]) + beta2) - invlogit(logit(pc2[1] + pc2[2]) + beta2),
+                    invlogit(logit(pc2[1] + pc2[2] + pc2[3] + pc2[4]) + beta2) - invlogit(logit(pc2[1] + pc2[2] + pc2[3]) + beta2),
+                    1 - invlogit(logit(pc2[1] + pc2[2] + pc2[3] + pc2[4]) + beta2))
+  
+  # scenario 1, null treatment effect
+  dat_2_null <- data.frame(matrix(NA, nrow = n, ncol = 3))
+  colnames(dat_2_null) <- c("y", "trt", "trt_05")
+  dat_2_null$trt <- rbinom(n, 1, 0.5)
+  dat_2_null$trt_05 <- case_when(dat_2_null$trt == 0 ~ -0.5, 
+                                 dat_2_null$trt == 1 ~ 0.5)
+  dat_2_null$y <- sample(1:5, n, replace = TRUE, prob = pc2)
+  
+  #scenario 1, constant RD 
+  dat_2_RD_constant <- data.frame(matrix(NA, nrow = n, ncol = 3))
+  colnames(dat_2_RD_constant) <- c("y", "trt", "trt_05")
+  dat_2_RD_constant$trt <- rbinom(n, 1, 0.5)
+  dat_2_RD_constant$trt_05 <- case_when(dat_2_RD_constant$trt == 0 ~ -0.5, 
+                                        dat_2_RD_constant$trt == 1 ~ 0.5)
+  dat_2_RD_constant$y <- case_when(dat_2_RD_constant$trt == 0 ~ sample(1:5,n,replace=TRUE,prob=pc2), 
+                                   dat_2_RD_constant$trt == 1 ~ sample(1:5,n,replace=TRUE,prob=pt_2_RD_constant))
+  
+  # scenario 2, small PO treatment effect 
+  dat_2_RD_PO_low <- data.frame(matrix(NA, nrow = n, ncol = 3))
+  colnames(dat_2_RD_PO_low) <- c("y", "trt", "trt_05")
+  dat_2_RD_PO_low$trt <- rbinom(n, 1, 0.5)
+  dat_2_RD_PO_low$trt_05 <- case_when(dat_2_RD_PO_low$trt == 0 ~ -0.5, 
+                                      dat_2_RD_PO_low$trt == 1 ~ 0.5)
+  dat_2_RD_PO_low$y <- case_when(dat_2_RD_PO_low$trt == 0 ~ sample(1:5,n,replace=TRUE,prob=pc2), 
+                                 dat_2_RD_PO_low$trt == 1 ~ sample(1:5,n,replace=TRUE,prob=pt_2_PO_low))
+  
+  
+  # scenario 2, large PO treatment effect 
+  dat_2_RD_PO_high <- data.frame(matrix(NA, nrow = n, ncol = 3))
+  colnames(dat_2_RD_PO_high) <- c("y", "trt", "trt_05")
+  dat_2_RD_PO_high$trt <- rbinom(n, 1, 0.5)
+  dat_2_RD_PO_high$trt_05 <- case_when(dat_2_RD_PO_high$trt == 0 ~ -0.5, 
+                                       dat_2_RD_PO_high$trt == 1 ~ 0.5)
+  dat_2_RD_PO_high$y <- case_when(dat_2_RD_PO_high$trt == 0 ~ sample(1:5,n,replace=TRUE,prob=pc2), 
+                                  dat_2_RD_PO_high$trt == 1 ~ sample(1:5,n,replace=TRUE,prob=pt_2_PO_high))
+  
+  
+  DFs <- list(
+    dat_1_null = dat_1_null,
+    dat_1_RD_constant = dat_1_RD_constant,
+    dat_1_RD_PO_low = dat_1_RD_PO_low,
+    dat_1_RD_PO_high = dat_1_RD_PO_high,
+    dat_2_null = dat_2_null,
+    dat_2_RD_constant = dat_2_RD_constant,
+    dat_2_RD_PO_low = dat_2_RD_PO_low,
+    dat_2_RD_PO_high = dat_2_RD_PO_high
+  )
+  
+  return(DFs)
+  
 }
 
 
@@ -158,9 +305,6 @@ DataGen_array <- function(n, array) {
 # new function for weighted risk difference 
 # assumes a partial proportional odds model 
 # assumes the treatment is coded as -0.5 for control and 0.5 for treatment 
-# b is the model 
-# iprior is the value of iprior in the rmsb model 
-# dat is the data
 order_weighted_RD2 <- function(b = b, iprior = 1, dat) { 
   # first calculate P(y >= i | ctl) and P(y >= i | trt) for all i 
   PPO_ctl_geq <- NA 
@@ -196,6 +340,8 @@ order_weighted_RD2 <- function(b = b, iprior = 1, dat) {
       PPO_trt_leq[i - 1] <- 1 - PPO_trt_geq[i]
     }
   }
+  
+  PPO_leq <- (PPO_ctl_leq + PPO_trt_leq)/2
   
   # calculate p(Y = i | control) for i = 1, ... , c
   for (i in 1:c) {
@@ -255,6 +401,21 @@ order_weighted_RD2 <- function(b = b, iprior = 1, dat) {
   
   unweighted_RD <- mean(PPO_trt_leq - PPO_ctl_leq)
   
+  # fully bayesian approach with cumulative weights 
+  numerator <- sum((PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])) * (PPO_trt_leq[j] - PPO_ctl_leq[j]))
+  denominator <- sum((PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])))
+  weighted_RD_cum <- numerator/denominator
+  
+  # fully bayesian approach with both weights 
+  numerator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * (PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])) * (PPO_trt_leq[j] - PPO_ctl_leq[j]))
+  denominator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * (PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])))
+  weighted_RD_both <- numerator/denominator
+  
+  # fully bayesian approach with both weights with overall prob
+  numerator <- sum((p_y_est[j] + p_y_est[k]) * (PPO_leq[j] * (1-PPO_leq[j])) * (PPO_trt_leq[j] - PPO_ctl_leq[j]))
+  denominator <- sum((p_y_est[j] + p_y_est[k]) * (PPO_leq[j] * (1-PPO_leq[j])))
+  weighted_RD_both_ov <- numerator/denominator
+
   #calculate weighted OR 
   numerator <- sum((p_y_ctl[j] + p_y_ctl[k])  * log(OR_le[j]))
   denominator <- sum(p_y_ctl[j]) + sum(p_y_ctl[k])
@@ -280,6 +441,24 @@ order_weighted_RD2 <- function(b = b, iprior = 1, dat) {
   weighted_OR_boverall <- exp(numerator/denominator)
   weighted_log_OR_boverall <- numerator/denominator
   
+  # fully bayesian with only cumulative weights
+  numerator <- sum((PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])) * log(OR_le[j]))
+  denominator <- sum((PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])))
+  weighted_OR_cum <- exp(numerator/denominator)
+  weighted_log_OR_cum <- numerator/denominator
+  
+  # fully bayesian with both cumulative and split weights
+  numerator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * (PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])) * log(OR_le[j]))
+  denominator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * (PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])))
+  weighted_OR_both <- exp(numerator/denominator)
+  weighted_log_OR_both <- numerator/denominator
+  
+  # fully bayesian with both cumulative and split weights
+  numerator <- sum((p_y_est[j] + p_y_est[k]) * (PPO_leq[j] * (1-PPO_leq[j])) * log(OR_le[j]))
+  denominator <- sum((p_y_est[j] + p_y_est[k]) * (PPO_leq[j] * (1-PPO_leq[j])))
+  weighted_OR_both_ov <- exp(numerator/denominator)
+  weighted_log_OR_both_ov <- numerator/denominator
+  
   unweighted_log_OR <- mean(log(OR_le))
   unweighted_OR <- exp(mean(log(OR_le)))
   
@@ -304,8 +483,60 @@ order_weighted_RD2 <- function(b = b, iprior = 1, dat) {
   denominator <- sum(p_y_est[j]) + sum(p_y_est[k])
   weighted_log_RR_boverall <- numerator/denominator
   
+  # fully bayesian with only cumulative weights
+  numerator <- sum((PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])) * log_RR_le[j])
+  denominator <- sum((PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])))
+  weighted_RR_cum <- exp(numerator/denominator)
+  weighted_log_RR_cum <- numerator/denominator
+  
+  # fully bayesian with both cumulative and split weights
+  numerator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * (PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])) * log_RR_le[j])
+  denominator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * (PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])))
+  weighted_RR_both <- exp(numerator/denominator)
+  weighted_log_RR_both <- numerator/denominator
+  
+  # fully bayesian with both cumulative and split weights
+  numerator <- sum((p_y_est[j] + p_y_est[k]) * (PPO_leq[j] * (1-PPO_leq[j])) * log_RR_le[j])
+  denominator <- sum((p_y_est[j] + p_y_est[k]) * (PPO_leq[j] * (1-PPO_leq[j])))
+  weighted_RR_both_ov <- exp(numerator/denominator)
+  weighted_log_RR_both_ov <- numerator/denominator
+  
+  ## for relative risk also look at using log_RR_ge 
+  # fully bayesian approach 
+  # calculate weighted RR with control probabilities 
+  numerator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * log_RR_ge[k])
+  denominator <- sum(p_y_ctl_est[j]) + sum(p_y_ctl_est[k])
+  weighted_log_RR_bcontrol_ge <- numerator/denominator
+  
+  # calculate weighted RR with overall probabilities 
+  numerator <- sum((p_y_est[j] + p_y_est[k]) * log_RR_ge[k]) 
+  denominator <- sum(p_y_est[j]) + sum(p_y_est[k])
+  weighted_log_RR_boverall_ge <- numerator/denominator
+  
+  # fully bayesian with only cumulative weights
+  numerator <- sum((PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])) * log_RR_ge[k])
+  denominator <- sum((PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])))
+  weighted_RR_cum_ge <- exp(numerator/denominator)
+  weighted_log_RR_cum_ge <- numerator/denominator
+  
+  # fully bayesian with both cumulative and split weights
+  numerator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * (PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])) * log_RR_ge[k])
+  denominator <- sum((p_y_ctl_est[j] + p_y_ctl_est[k]) * (PPO_ctl_leq[j] * (1-PPO_ctl_leq[j])))
+  weighted_RR_both_ge <- exp(numerator/denominator)
+  weighted_log_RR_both_ge <- numerator/denominator
+  
+  # fully bayesian with both cumulative and split weights
+  numerator <- sum((p_y_est[j] + p_y_est[k]) * (PPO_leq[j] * (1-PPO_leq[j])) * log_RR_ge[k])
+  denominator <- sum((p_y_est[j] + p_y_est[k]) * (PPO_leq[j] * (1-PPO_leq[j])))
+  weighted_RR_both_ov_ge <- exp(numerator/denominator)
+  weighted_log_RR_both_ov_ge <- numerator/denominator
+  
   unweighted_log_RR <- mean(log_RR_le)
   unweighted_RR <- exp(mean(log_RR_le))
+  
+  unweighted_log_RR_ge <- mean(log_RR_ge, na.rm = T)
+  unweighted_RR_ge <- exp(mean(log_RR_ge, na.rm = T))
+  
   
   # calculate NB 
   NB <- sum(p_y_trt_est[j] * PPO_ctl_geq[j+1]) - (sum(p_y_ctl_est[j] * PPO_trt_geq[j+1]))
@@ -319,6 +550,9 @@ order_weighted_RD2 <- function(b = b, iprior = 1, dat) {
   #             log_OR = log_OR_le,
               weighted_RD_control_PPO = weighted_RD, 
               weighted_RD_overall_PPO = weighted_RD_overall,
+              weighted_RD_cum_PPO = weighted_RD_cum,
+              weighted_RD_both_PPO = weighted_RD_both,
+              weighted_RD_both_ov_PPO = weighted_RD_both_ov,
               unweighted_RD_PPO = unweighted_RD,
               weighted_OR_control_PPO = weighted_OR,
               weighted_OR_overall_PPO = weighted_OR_overall,
@@ -334,10 +568,28 @@ order_weighted_RD2 <- function(b = b, iprior = 1, dat) {
               weighted_RD_boverall_PPO = weighted_RD_boverall,
               weighted_OR_bcontrol_PPO = weighted_OR_b,
               weighted_OR_boverall_PPO = weighted_OR_boverall,
+              weighted_OR_cum_PPO = weighted_OR_cum,
+              weighted_OR_both_PPO = weighted_OR_both,
+              weighted_OR_both_ov_PPO = weighted_OR_both_ov,
               weighted_log_OR_boverall_PPO = weighted_log_OR_boverall,
               weighted_log_OR_bcontrol_PPO = weighted_log_OR_b,
+              weighted_log_OR_cum_PPO = weighted_log_OR_cum,
+              weighted_log_OR_both_PPO = weighted_log_OR_both,
+              weighted_log_OR_both_ov_PPO = weighted_log_OR_both_ov,
               weighted_log_RR_bcontrol_PPO = weighted_log_RR_bcontrol, 
               weighted_log_RR_boverall_PPO = weighted_log_RR_boverall,
+              weighted_log_RR_cum_PPO = weighted_log_RR_cum,
+              weighted_log_RR_both_PPO = weighted_log_RR_both,
+              weighted_log_RR_both_ov_PPO = weighted_log_RR_both_ov,
+              
+              
+              weighted_log_RR_bcontrol_ge_PPO = weighted_log_RR_bcontrol_ge, 
+              weighted_log_RR_boverall_ge_PPO = weighted_log_RR_boverall_ge,
+              weighted_log_RR_cum_ge_PPO = weighted_log_RR_cum_ge,
+              weighted_log_RR_both_ge_PPO = weighted_log_RR_both_ge,
+              weighted_log_RR_both_ov_ge_PPO = weighted_log_RR_both_ov_ge,
+              unweighted_log_RR_ge_PPO = unweighted_log_RR_ge,
+              unweighted_RR_ge_PPO = unweighted_RR_ge,
               #WR = WR, 
               NB_PPO = NB))
   
@@ -348,9 +600,7 @@ order_weighted_RD2 <- function(b = b, iprior = 1, dat) {
 # assumes a partial proportional odds model 
 # assumes the treatment is coded as -0.5 for control and 0.5 for treatment 
 # b is the model 
-# n_post_draws is the number of posterior draws for the model
-# dat is the data
-# NOTE: this does not work for the iprior = 1 
+# NOTE: this only works for the iprior = 1 because I negated the alphas in rows 566, 567, 574, 576
 order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) { 
   # first calculate P(y >= i | ctl) and P(y >= i | trt) for all i
   posterior_draws <- as.matrix(b$draws)
@@ -381,6 +631,8 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
       PPO_trt_leq[,(i - 1)] <- 1 - PPO_trt_geq[,i]
     }
   }
+  
+  PPO_leq <- (PPO_ctl_leq + PPO_trt_leq)/2
   
   # calculate p(Y = i | control) using the model for i = 1, ... , c
   for (i in 1:c) {
@@ -464,6 +716,30 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
   weighted_RD_p_boverall <- 1 - sum(weighted_RD_boverall >= 0)/n_post_draws
   weighted_RD_sd_boverall <- sd(weighted_RD_boverall)
   
+  # cumulative weights
+  numerator <- rowSums((PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])) * (PPO_trt_leq[,j] - PPO_ctl_leq[,j]))
+  denominator <- rowSums((PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])))
+  weighted_RD_cum <- numerator/denominator
+  weighted_RD_cum95CI <- quantile(weighted_RD_cum, probs = c(0.025, 0.975))
+  weighted_RD_cump <- 1 - sum(weighted_RD_cum >= 0)/n_post_draws
+  weighted_RD_cumsd <- sd(weighted_RD_cum)
+  
+  # both weights
+  numerator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * (PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])) * (PPO_trt_leq[,j] - PPO_ctl_leq[,j]))
+  denominator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * (PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])))
+  weighted_RD_both <- numerator/denominator
+  weighted_RD_both95CI <- quantile(weighted_RD_both, probs = c(0.025, 0.975))
+  weighted_RD_bothp <- 1 - sum(weighted_RD_both >= 0)/n_post_draws
+  weighted_RD_bothsd <- sd(weighted_RD_both)
+  
+  # both weights
+  numerator <- rowSums((p_y_est[,j] + p_y_est[,k]) * (PPO_leq[,j] * (1-PPO_leq[,j])) * (PPO_trt_leq[,j] - PPO_ctl_leq[,j]))
+  denominator <- rowSums((p_y_est[,j] + p_y_est[,k]) * (PPO_leq[,j] * (1-PPO_leq[,j])))
+  weighted_RD_both_ov <- numerator/denominator
+  weighted_RD_both_ov95CI <- quantile(weighted_RD_both_ov, probs = c(0.025, 0.975))
+  weighted_RD_both_ovp <- 1 - sum(weighted_RD_both_ov >= 0)/n_post_draws
+  weighted_RD_both_ovsd <- sd(weighted_RD_both_ov)
+  
   #unweighted RD
   unweighted_RD <- rowMeans(RD_leq, na.rm = T)
   unweighted_RD_95CI <- quantile(unweighted_RD, probs = c(0.025, 0.975))
@@ -483,7 +759,6 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
   weighted_log_OR_95CI <- quantile(weighted_log_OR, probs = c(0.025, 0.975))
   weighted_log_OR_p <- 1 - sum(weighted_log_OR >= 0)/n_post_draws
   weighted_log_OR_sd <- sd(weighted_log_OR)
-  
   
   #calculate weighted OR with overall probability as weights 
   numerator <- rowSums((t(replicate(n_post_draws, p_y))[,j] + t(replicate(n_post_draws, p_y))[,k]) * 
@@ -528,6 +803,45 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
   weighted_log_OR_95CI_boverall <- quantile(weighted_log_OR_boverall, probs = c(0.025, 0.975))
   weighted_log_OR_p_boverall <- 1 - sum(weighted_log_OR_boverall >= 0)/n_post_draws
   weighted_log_OR_sd_boverall <- sd(weighted_log_OR_boverall)
+  
+  # cumulative weights only
+  numerator <- rowSums((PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])) * log(OR_le[,j]))
+  denominator <- rowSums((PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])))
+  weighted_OR_cum <- exp(numerator/denominator)
+  weighted_OR_cum95CI <- quantile(weighted_OR_cum, probs = c(0.025, 0.975))
+  weighted_OR_cump <- 1 - sum(weighted_OR_cum >= 0)/n_post_draws
+  weighted_OR_cumsd <- sd(weighted_OR_cum)
+  
+  weighted_log_OR_cum <- numerator/denominator
+  weighted_log_OR_cum95CI <- quantile(weighted_log_OR_cum, probs = c(0.025, 0.975))
+  weighted_log_OR_cump <- 1 - sum(weighted_log_OR_cum >= 0)/n_post_draws
+  weighted_log_OR_cumsd <- sd(weighted_log_OR_cum)
+  
+  # both weights
+  numerator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * (PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])) * log(OR_le[,j]))
+  denominator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * (PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])))
+  weighted_OR_both <- exp(numerator/denominator)
+  weighted_OR_both95CI <- quantile(weighted_OR_both, probs = c(0.025, 0.975))
+  weighted_OR_bothp <- 1 - sum(weighted_OR_both >= 0)/n_post_draws
+  weighted_OR_bothsd <- sd(weighted_OR_both)
+  
+  weighted_log_OR_both <- numerator/denominator
+  weighted_log_OR_both95CI <- quantile(weighted_log_OR_both, probs = c(0.025, 0.975))
+  weighted_log_OR_bothp <- 1 - sum(weighted_log_OR_both >= 0)/n_post_draws
+  weighted_log_OR_bothsd <- sd(weighted_log_OR_both)
+  
+  # both weights with overall probability
+  numerator <- rowSums((p_y_est[,j] + p_y_est[,k]) * (PPO_leq[,j] * (1-PPO_leq[,j])) * log(OR_le[,j]))
+  denominator <- rowSums((p_y_est[,j] + p_y_est[,k]) * (PPO_leq[,j] * (1-PPO_leq[,j])))
+  weighted_OR_both_ov <- exp(numerator/denominator)
+  weighted_OR_both_ov95CI <- quantile(weighted_OR_both_ov, probs = c(0.025, 0.975))
+  weighted_OR_both_ovp <- 1 - sum(weighted_OR_both_ov >= 0)/n_post_draws
+  weighted_OR_both_ovsd <- sd(weighted_OR_both_ov)
+  
+  weighted_log_OR_both_ov <- numerator/denominator
+  weighted_log_OR_both_ov95CI <- quantile(weighted_log_OR_both_ov, probs = c(0.025, 0.975))
+  weighted_log_OR_both_ovp <- 1 - sum(weighted_log_OR_both_ov >= 0)/n_post_draws
+  weighted_log_OR_both_ovsd <- sd(weighted_log_OR_both_ov)
   
   #unweighted OR 
   unweighted_OR <- rowMeans(log_OR_le, na.rm = T)
@@ -577,6 +891,30 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
   weighted_log_RR_p_boverall <- 1 - sum(weighted_log_RR_boverall >= 0)/n_post_draws
   weighted_log_RR_sd_boverall <- sd(weighted_log_RR_boverall)
   
+  # cumulative weights only
+  numerator <- rowSums((PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])) * log_RR_le[,j])
+  denominator <- rowSums((PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])))
+  weighted_log_RR_cum <- numerator/denominator
+  weighted_log_RR_cum95CI <- quantile(weighted_log_RR_cum, probs = c(0.025, 0.975))
+  weighted_log_RR_cump <- 1 - sum(weighted_log_RR_cum >= 0)/n_post_draws
+  weighted_log_RR_cumsd <- sd(weighted_log_RR_cum)
+  
+  # both weights
+  numerator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * (PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])) * log_RR_le[,j])
+  denominator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * (PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])))
+  weighted_log_RR_both <- numerator/denominator
+  weighted_log_RR_both95CI <- quantile(weighted_log_RR_both, probs = c(0.025, 0.975))
+  weighted_log_RR_bothp <- 1 - sum(weighted_log_RR_both >= 0)/n_post_draws
+  weighted_log_RR_bothsd <- sd(weighted_log_RR_both)
+  
+  # both weights
+  numerator <- rowSums((p_y_est[,j] + p_y_est[,k]) * (PPO_leq[,j] * (1-PPO_leq[,j])) * log_RR_le[,j])
+  denominator <- rowSums((p_y_est[,j] + p_y_est[,k]) * (PPO_leq[,j] * (1-PPO_leq[,j])))
+  weighted_log_RR_both_ov <- numerator/denominator
+  weighted_log_RR_both_ov95CI <- quantile(weighted_log_RR_both_ov, probs = c(0.025, 0.975))
+  weighted_log_RR_both_ovp <- 1 - sum(weighted_log_RR_both_ov >= 0)/n_post_draws
+  weighted_log_RR_both_ovsd <- sd(weighted_log_RR_both_ov)
+  
   #unweighted RR
   unweighted_RR <- rowMeans(log_RR_le, na.rm = T)
   unweighted_log_RR_95CI <- quantile(unweighted_RR, probs = c(0.025, 0.975))
@@ -587,6 +925,55 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
   unweighted_RR_95CI <- quantile(exp(unweighted_RR), probs = c(0.025, 0.975))
   unweighted_RR_p <- 1 - sum(exp(unweighted_RR) >= 0)/n_post_draws
   unweighted_RR_sd <- sd(exp(unweighted_RR))
+  
+  # fully bayesian RR greater than or equal to 
+  # calculate weighted RR with control probabilities 
+  numerator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * 
+                         log_RR_ge[,k])
+  denominator <- rowSums(p_y_ctl_est[,j]) + rowSums(p_y_ctl_est[,k])
+  weighted_log_RR_ge_bcontrol <- numerator/denominator
+  weighted_log_RR_ge_95CI_bcontrol <- quantile(weighted_log_RR_ge_bcontrol, probs = c(0.025, 0.975))
+  weighted_log_RR_ge_p_bcontrol <- 1 - sum(weighted_log_RR_ge_bcontrol >= 0)/n_post_draws
+  weighted_log_RR_ge_sd_bcontrol <- sd(weighted_log_RR_ge_bcontrol)
+  
+  # calculate weighted RR with overall probabilities 
+  numerator <- rowSums((p_y_est[,j] + p_y_est[,k]) * 
+                         log_RR_ge[,k])
+  denominator <- rowSums(p_y_est[,j]) + rowSums(p_y_est[,k])
+  weighted_log_RR_ge_boverall <- numerator/denominator
+  weighted_log_RR_ge_95CI_boverall <- quantile(weighted_log_RR_ge_boverall, probs = c(0.025, 0.975))
+  weighted_log_RR_ge_p_boverall <- 1 - sum(weighted_log_RR_ge_boverall >= 0)/n_post_draws
+  weighted_log_RR_ge_sd_boverall <- sd(weighted_log_RR_ge_boverall)
+  
+  # cumulative weights only
+  numerator <- rowSums((PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])) * log_RR_ge[,k])
+  denominator <- rowSums((PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])))
+  weighted_log_RR_ge_cum <- numerator/denominator
+  weighted_log_RR_ge_cum95CI <- quantile(weighted_log_RR_ge_cum, probs = c(0.025, 0.975))
+  weighted_log_RR_ge_cump <- 1 - sum(weighted_log_RR_ge_cum >= 0)/n_post_draws
+  weighted_log_RR_ge_cumsd <- sd(weighted_log_RR_ge_cum)
+  
+  # both weights
+  numerator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * (PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])) * log_RR_ge[,k])
+  denominator <- rowSums((p_y_ctl_est[,j] + p_y_ctl_est[,k]) * (PPO_ctl_leq[,j] * (1-PPO_ctl_leq[,j])))
+  weighted_log_RR_ge_both <- numerator/denominator
+  weighted_log_RR_ge_both95CI <- quantile(weighted_log_RR_ge_both, probs = c(0.025, 0.975))
+  weighted_log_RR_ge_bothp <- 1 - sum(weighted_log_RR_ge_both >= 0)/n_post_draws
+  weighted_log_RR_ge_bothsd <- sd(weighted_log_RR_ge_both)
+  
+  # both weights overall weights
+  numerator <- rowSums((p_y_est[,j] + p_y_est[,k]) * (PPO_leq[,j] * (1-PPO_leq[,j])) * log_RR_ge[,k])
+  denominator <- rowSums((p_y_est[,j] + p_y_est[,k]) * (PPO_leq[,j] * (1-PPO_leq[,j])))
+  weighted_log_RR_ge_both_ov <- numerator/denominator
+  weighted_log_RR_ge_both_ov95CI <- quantile(weighted_log_RR_ge_both_ov, probs = c(0.025, 0.975))
+  weighted_log_RR_ge_both_ovp <- 1 - sum(weighted_log_RR_ge_both_ov >= 0)/n_post_draws
+  weighted_log_RR_ge_both_ovsd <- sd(weighted_log_RR_ge_both_ov)
+  
+  #unweighted RR
+  unweighted_RR_ge <- rowMeans(log_RR_ge, na.rm = T)
+  unweighted_log_RR_ge_95CI <- quantile(unweighted_RR_ge, probs = c(0.025, 0.975))
+  unweighted_log_RR_ge_p <- 1 - sum(unweighted_RR_ge >= 0)/n_post_draws
+  unweighted_log_RR_ge_sd <- sd(unweighted_RR_ge)
   
   # calculate NB 
   NB <- rowSums(p_y_trt_est[,j] * PPO_ctl_geq[,(j+1)]) - (rowSums(p_y_ctl_est[,j] * PPO_trt_geq[,(j+1)]))
@@ -649,6 +1036,12 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
               weighted_log_RR_95CI_boverall_PPO = weighted_log_RR_95CI_boverall,
               weighted_log_RR_p_boverall_PPO = weighted_log_RR_p_boverall, 
               weighted_log_RR_sd_boverall_PPO = weighted_log_RR_sd_boverall,
+              weighted_log_RR_ge_95CI_bcontrol_PPO = weighted_log_RR_ge_95CI_bcontrol,
+              weighted_log_RR_ge_p_bcontrol_PPO = weighted_log_RR_ge_p_bcontrol, 
+              weighted_log_RR_ge_sd_bcontrol_PPO = weighted_log_RR_ge_sd_bcontrol,
+              weighted_log_RR_ge_95CI_boverall_PPO = weighted_log_RR_ge_95CI_boverall,
+              weighted_log_RR_ge_p_boverall_PPO = weighted_log_RR_ge_p_boverall, 
+              weighted_log_RR_ge_sd_boverall_PPO = weighted_log_RR_ge_sd_boverall,
               
               unweighted_RD_CI_PPO = unweighted_RD_95CI,
               unweighted_RD_p_PPO = unweighted_RD_p,
@@ -665,6 +1058,47 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
               unweighted_log_RR_CI_PPO = unweighted_log_RR_95CI,
               unweighted_log_RR_p_PPO = unweighted_log_RR_p,
               unweighted_log_RR_sd_PPO = unweighted_log_RR_sd,
+              unweighted_log_RR_ge_CI_PPO = unweighted_log_RR_ge_95CI,
+              unweighted_log_RR_ge_p_PPO = unweighted_log_RR_ge_p,
+              unweighted_log_RR_ge_sd_PPO = unweighted_log_RR_ge_sd,
+              
+              
+              weighted_RD_cum_CI_PPO = weighted_RD_cum95CI,
+              weighted_RD_cum_p_PPO = weighted_RD_cump,
+              weighted_RD_cum_sd_PPO = weighted_RD_cumsd,
+              weighted_RD_both_CI_PPO = weighted_RD_both95CI,
+              weighted_RD_both_p_PPO = weighted_RD_bothp,
+              weighted_RD_both_sd_PPO = weighted_RD_bothsd, 
+              weighted_RD_both_ov_CI_PPO = weighted_RD_both_ov95CI,
+              weighted_RD_both_ov_p_PPO = weighted_RD_both_ovp,
+              weighted_RD_both_ov_sd_PPO = weighted_RD_both_ovsd, 
+              weighted_log_OR_cum_CI_PPO = weighted_log_OR_cum95CI,
+              weighted_log_OR_cum_p_PPO = weighted_log_OR_cump,
+              weighted_log_OR_cum_sd_PPO = weighted_log_OR_cumsd,
+              weighted_log_OR_both_CI_PPO = weighted_log_OR_both95CI,
+              weighted_log_OR_both_p_PPO = weighted_log_OR_bothp,
+              weighted_log_OR_both_sd_PPO = weighted_log_OR_bothsd,
+              weighted_log_OR_both_ov_CI_PPO = weighted_log_OR_both_ov95CI,
+              weighted_log_OR_both_ov_p_PPO = weighted_log_OR_both_ovp,
+              weighted_log_OR_both_ov_sd_PPO = weighted_log_OR_both_ovsd,
+              weighted_log_RR_cum_CI_PPO = weighted_log_RR_cum95CI,
+              weighted_log_RR_cum_p_PPO = weighted_log_RR_cump,
+              weighted_log_RR_cum_sd_PPO = weighted_log_RR_cumsd,
+              weighted_log_RR_both_CI_PPO = weighted_log_RR_both95CI,
+              weighted_log_RR_both_p_PPO = weighted_log_RR_bothp,
+              weighted_log_RR_both_sd_PPO = weighted_log_RR_bothsd,
+              weighted_log_RR_both_ov_CI_PPO = weighted_log_RR_both_ov95CI,
+              weighted_log_RR_both_ov_p_PPO = weighted_log_RR_both_ovp,
+              weighted_log_RR_both_ov_sd_PPO = weighted_log_RR_both_ovsd,
+              weighted_log_RR_ge_cum_CI_PPO = weighted_log_RR_ge_cum95CI,
+              weighted_log_RR_ge_cum_p_PPO = weighted_log_RR_ge_cump,
+              weighted_log_RR_ge_cum_sd_PPO = weighted_log_RR_ge_cumsd,
+              weighted_log_RR_ge_both_CI_PPO = weighted_log_RR_ge_both95CI,
+              weighted_log_RR_ge_both_p_PPO = weighted_log_RR_ge_bothp,
+              weighted_log_RR_ge_both_sd_PPO = weighted_log_RR_ge_bothsd,
+              weighted_log_RR_ge_both_ov_CI_PPO = weighted_log_RR_ge_both_ov95CI,
+              weighted_log_RR_ge_both_ov_p_PPO = weighted_log_RR_ge_both_ovp,
+              weighted_log_RR_ge_both_ov_sd_PPO = weighted_log_RR_ge_both_ovsd,
               
               
               
@@ -679,8 +1113,6 @@ order_weighted_RD2_CI <- function(b, n_post_draws = 4000, dat) {
 # new function for weighted risk difference 
 # assumes a proportional odds model 
 # assumes the treatment is coded as -0.5 for control and 0.5 for treatment 
-# b is the model 
-# dat is the data
 order_weighted_RD2_PO <- function(b = b, dat) { 
   # first calculate P(y >= i | ctl) and P(y >= i | trt) for all i 
   PO_ctl_geq <- NA 
@@ -782,8 +1214,6 @@ order_weighted_RD2_PO <- function(b = b, dat) {
 # assumes a partial proportional odds model 
 # assumes the treatment is coded as -0.5 for control and 0.5 for treatment 
 # b is the model 
-# n_post_draws is the number of posterior draws in the model 
-# dat is the data
 order_weighted_RD2_PO_CI <- function(b, n_post_draws = 4000, dat) { 
   # first calculate P(y >= i | ctl) and P(y >= i | trt) for all i
   posterior_draws <- as.matrix(b$draws)
@@ -922,8 +1352,6 @@ order_weighted_RD2_PO_CI <- function(b, n_post_draws = 4000, dat) {
 }
 
 # write function to calculate order invariant weighted risk difference using polr 
-# b is the model 
-# c is the number of levels in the ordinal outcome
 polr_order_weighted_RD <- function(b = b, c) { 
   p_ctl_more <- NA
   p_trt_more <- NA
